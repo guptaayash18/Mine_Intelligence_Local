@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDataset } from "@/lib/dataset";
+import { axisLabeler, buildDataset, shortLabel } from "@/lib/dataset";
 import {
   detectSeasonalPeriod,
   forecastColumn,
@@ -118,5 +118,33 @@ describe("forecastColumn", () => {
       "t.csv",
     );
     expect(() => forecastColumn(ds, "x")).toThrow(/at least 12/);
+  });
+});
+
+describe("axisLabeler", () => {
+  const hourly = (days: number) =>
+    Array.from({ length: days * 24 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 9, 22, 0) + i * 3_600_000);
+      return d.toISOString().slice(0, 19).replace("T", " ");
+    });
+
+  it("shows time of day for hourly data on one day", () => {
+    const f = axisLabeler(hourly(1).slice(0, 12));
+    expect(f("2026-10-22 05:00:00")).toMatch(/05[:.]00/);
+    expect(f("2026-10-22 05:00:00")).not.toMatch(/Oct/);
+  });
+  it("shows date and time when sub-daily data crosses midnight", () => {
+    const f = axisLabeler(hourly(2));
+    expect(f("2026-10-23 05:00:00")).toMatch(/23.*05[:.]00|Oct.*23.*05[:.]00/);
+  });
+  it("falls back to the date for long or date-only data", () => {
+    const daily = Array.from(
+      { length: 30 },
+      (_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`,
+    );
+    expect(axisLabeler(daily)("2026-10-05")).toBe(shortLabel("2026-10-05"));
+    expect(axisLabeler(hourly(10))("2026-10-05 05:00:00")).toBe(
+      shortLabel("2026-10-05 05:00:00"),
+    );
   });
 });

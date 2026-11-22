@@ -16,7 +16,7 @@ import { chartColor } from "@/components/charts";
 import {
   formatValue,
   prettyName,
-  shortLabel,
+  axisLabeler,
   type Dataset,
 } from "@/lib/dataset";
 import {
@@ -133,6 +133,10 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
     return { rows: out, splitIdx: lastHist };
   }, [result]);
 
+  const axisLabel = useMemo(
+    () => axisLabeler(rows.map((r) => r.label)),
+    [rows],
+  );
   const color = chartColor(colorIndex);
 
   return (
@@ -223,7 +227,7 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
                   type="number"
                   domain={[0, Math.max(0, rows.length - 1)]}
                   tickFormatter={(i: number) =>
-                    rows[i] ? shortLabel(rows[i].label) : ""
+                    rows[i] ? axisLabel(rows[i].label) : ""
                   }
                   tick={{
                     fill: "var(--color-muted-foreground)",

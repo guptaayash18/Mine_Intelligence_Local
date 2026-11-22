@@ -17,7 +17,7 @@ import {
   computeAnomalies,
   formatValue,
   prettyName,
-  shortLabel,
+  axisLabeler,
   type Anomaly,
   type Dataset,
 } from "@/lib/dataset";
@@ -76,6 +76,8 @@ export function TrendConsole({ dataset, selected, normalized, onToggle, onNormal
       return out;
     });
   }, [dataset, selected, normalized]);
+
+  const axisLabel = useMemo(() => axisLabeler(rows.map((r) => r.label)), [rows]);
 
   const anomalies: Anomaly[] = useMemo(() => {
     if (normalized) return [];
@@ -136,7 +138,7 @@ export function TrendConsole({ dataset, selected, normalized, onToggle, onNormal
               <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} strokeDasharray="3 6" />
               <XAxis
                 dataKey="idx"
-                tickFormatter={(i: number) => (rows[i] ? shortLabel(rows[i].label) : "")}
+                tickFormatter={(i: number) => (rows[i] ? axisLabel(rows[i].label) : "")}
                 tick={{ fill: "var(--color-muted-foreground)", fontSize: 10, fontFamily: "IBM Plex Mono" }}
                 stroke="var(--color-border)"
                 minTickGap={40}

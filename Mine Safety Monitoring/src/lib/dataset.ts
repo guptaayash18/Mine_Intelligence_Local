@@ -530,6 +530,37 @@ export function formatValue(v: number, unit = ""): string {
   return unit ? `${s} ${unit}` : s;
 }
 
+/**
+ * Axis label formatter chosen from the whole set of labels. Data that spans
+ * less than a week and has a time of day gets hours and minutes ("13:00", or
+ * "Oct 22 13:00" when it crosses midnight); anything longer shows the date.
+ */
+export function axisLabeler(
+  labels: readonly string[],
+): (label: string) => string {
+  const times = labels
+    .map((l) => (/:/.test(l) ? parseTimestamp(l) : null))
+    .filter((t): t is number => t !== null);
+  if (times.length < 2 || times.length < labels.length * 0.5) return shortLabel;
+  const first = Math.min(...times);
+  const last = Math.max(...times);
+  if (last - first >= 7 * 86_400_000) return shortLabel;
+  const sameDay =
+    new Date(first).toDateString() === new Date(last).toDateString();
+  return (label) => {
+    const t = parseTimestamp(label);
+    if (t === null) return label;
+    const d = new Date(t);
+    const time = d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    if (sameDay) return time;
+    return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${time}`;
+  };
+}
+
 export function shortLabel(label: string): string {
   const t = parseTimestamp(label) ?? Number.NaN;
   if (!Number.isNaN(t) && /[-/:]/.test(label)) {
