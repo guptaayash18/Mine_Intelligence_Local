@@ -7,6 +7,7 @@ import {
   forecastSeries,
   forecastToCsv,
   interpolateGaps,
+  simulatePath,
 } from "@/lib/forecast";
 
 const seasonal = (n: number, m: number, slope = 0) =>
@@ -146,5 +147,66 @@ describe("axisLabeler", () => {
     expect(axisLabeler(hourly(10))("2026-10-05 05:00:00")).toBe(
       shortLabel("2026-10-05 05:00:00"),
     );
+  });
+});
+
+describe("simulated scenario", () => {
+  // Trend plus smooth-wandering noise, like a real sensor log.
+  const noisy = (n: number) => {
+    let e = 0;
+    let s = 12345;
+    const rnd = () =>
+      ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 2;
+    return Array.from({ length: n }, (_, t) => {
+      e = 0.6 * e + rnd() * 0.8;
+      return 100 + 0.4 * t + e;
+    });
+  };
+  const stepStd = (a: number[]) => {
+    const d = a.slice(1).map((v, i) => v - a[i]!);
+    const m = d.reduce((x, y) => x + y, 0) / d.length;
+    return Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / d.length);
+  };
+
+  it("varies from step to step instead of following a straight line", () => {
+    const y = noisy(300);
+    const f = forecastSeries(y, 150);
+    const wiggle = stepStd(f.sim);
+    const mean = stepStd(f.values);
+    expect(mean).toBeLessThan(0.05); // expected path is (almost) straight
+    expect(wiggle).toBeGreaterThan(0.1);
+  });
+
+  it("has step-to-step roughness comparable to the recorded data", () => {
+    const y = noisy(300);
+    const f = forecastSeries(y, 150);
+    // Remove the trend from history and from the scenario, then compare roughness.
+    const detrend = (a: number[]) => a.map((v, i) => v - 0.4 * i);
+    const hist = stepStd(detrend(y));
+    const sim = stepStd(f.sim.map((v, i) => v - f.values[i]!));
+    expect(sim / hist).toBeGreaterThan(0.5);
+    expect(sim / hist).toBeLessThan(2);
+  });
+
+  it("mostly stays inside the 80% band", () => {
+    const f = forecastSeries(noisy(300), 150);
+    const inside = f.sim.filter(
+      (v, i) => v >= f.lo[i]! && v <= f.hi[i]!,
+    ).length;
+    expect(inside / f.sim.length).toBeGreaterThan(0.6);
+  });
+
+  it("is repeatable per seed and differs between seeds", () => {
+    const f = forecastSeries(noisy(200), 100);
+    const a = simulatePath(f.values, f.sigma, f.noisePhi, f.lastResidual, 7);
+    const b = simulatePath(f.values, f.sigma, f.noisePhi, f.lastResidual, 7);
+    const c = simulatePath(f.values, f.sigma, f.noisePhi, f.lastResidual, 8);
+    expect(a).toEqual(b);
+    expect(a).not.toEqual(c);
+  });
+
+  it("stays flat for a constant series", () => {
+    const f = forecastSeries(new Array(30).fill(5), 10);
+    expect(f.sim.every((v) => v === 5)).toBe(true);
   });
 });

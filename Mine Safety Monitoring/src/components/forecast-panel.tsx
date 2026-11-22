@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download, TriangleAlert, TrendingUp } from "lucide-react";
+import { Dices, Download, TriangleAlert, TrendingUp } from "lucide-react";
 
 import { chartColor } from "@/components/charts";
 import {
@@ -23,6 +23,8 @@ import {
   forecastColumn,
   forecastToCsv,
   type ForecastResult,
+  DEFAULT_SEED,
+  simulatePath,
 } from "@/lib/forecast";
 
 /** How much recent history to draw next to the forecast (a multiple of its length). */
@@ -33,6 +35,7 @@ interface Row {
   label: string;
   actual?: number;
   forecast?: number;
+  sim?: number;
   band?: [number, number];
 }
 
@@ -58,8 +61,14 @@ function ForecastTooltip({
       )}
       {row.forecast !== undefined && (
         <>
+          {row.sim !== undefined && row.actual === undefined && (
+            <p className="text-foreground">
+              <span className="text-muted-foreground">SCENARIO </span>
+              {formatValue(row.sim, unit)}
+            </p>
+          )}
           <p className="text-foreground">
-            <span className="text-muted-foreground">FORECAST </span>
+            <span className="text-muted-foreground">EXPECTED </span>
             {formatValue(row.forecast, unit)}
           </p>
           {row.band && (
@@ -106,6 +115,21 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
   const colorIndex = Math.max(0, dataset.numericNames.indexOf(active));
   const { result, error } = outcome;
 
+  // The scenario is one plausible path; a new seed draws a different one.
+  const [seed, setSeed] = useState(DEFAULT_SEED);
+  const [showVariation, setShowVariation] = useState(true);
+  const sim = useMemo(() => {
+    if (!result) return [];
+    if (seed === DEFAULT_SEED) return result.points.map((p) => p.sim);
+    return simulatePath(
+      result.points.map((p) => p.value),
+      result.points.map((p) => p.sigma),
+      result.noisePhi,
+      result.lastResidual,
+      seed,
+    );
+  }, [result, seed]);
+
   const { rows, splitIdx } = useMemo(() => {
     if (!result) return { rows: [] as Row[], splitIdx: 0 };
     const keep = Math.max(24, result.horizon * HISTORY_SHOWN);
@@ -120,18 +144,20 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
     const joined = out[lastHist];
     if (joined && joined.actual !== undefined) {
       joined.forecast = joined.actual;
+      joined.sim = joined.actual;
       joined.band = [joined.actual, joined.actual];
     }
-    result.points.forEach((p) => {
+    result.points.forEach((p, k) => {
       out.push({
         i: out.length,
         label: p.label,
         forecast: p.value,
+        sim: sim[k] ?? p.value,
         band: [p.lo, p.hi],
       });
     });
     return { rows: out, splitIdx: lastHist };
-  }, [result]);
+  }, [result, sim]);
 
   const axisLabel = useMemo(
     () => axisLabeler(rows.map((r) => r.label)),
@@ -148,7 +174,10 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
         {dataset.numericNames.map((name, i) => (
           <button
             key={name}
-            onClick={() => setColumn(name)}
+            onClick={() => {
+              setColumn(name);
+              setSeed(DEFAULT_SEED);
+            }}
             className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-[11px] tracking-wide transition-colors ${
               name === active
                 ? "border-primary/60 bg-primary/15 text-foreground"
@@ -165,6 +194,26 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
             {prettyName(name)}
           </button>
         ))}
+        {result && (
+          <label className="ml-auto flex cursor-pointer items-center gap-2 font-mono text-[11px] tracking-wider text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showVariation}
+              onChange={(e) => setShowVariation(e.target.checked)}
+              className="size-3.5 accent-[var(--color-primary)]"
+            />
+            REALISTIC VARIATION
+          </label>
+        )}
+        {result && showVariation && (
+          <button
+            onClick={() => setSeed((n) => n + 1)}
+            className="flex items-center gap-1.5 rounded-sm border border-border bg-surface px-2.5 py-1 font-mono text-[11px] tracking-wider text-foreground transition-colors hover:border-primary/60"
+          >
+            <Dices className="size-3.5" />
+            NEW SCENARIO
+          </button>
+        )}
         {result && (
           <button
             onClick={() =>
@@ -271,11 +320,23 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
                   isAnimationActive={false}
                   connectNulls={false}
                 />
+                {showVariation && (
+                  <Line
+                    dataKey="sim"
+                    stroke={color}
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls
+                  />
+                )}
                 <Line
                   dataKey="forecast"
-                  stroke={color}
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
+                  stroke={showVariation ? "var(--color-foreground)" : color}
+                  strokeOpacity={showVariation ? 0.55 : 1}
+                  strokeWidth={showVariation ? 1.25 : 2}
+                  strokeDasharray={showVariation ? "2 3" : "6 4"}
                   dot={false}
                   isAnimationActive={false}
                   connectNulls
@@ -300,8 +361,9 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
           <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] tracking-wider text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <TrendingUp className="size-3" />
-              SOLID = RECORDED · DASHED = FORECAST · SHADED = 80% BAND (NOT A
-              GUARANTEE)
+              {showVariation
+                ? "SOLID = RECORDED · DASHED = ONE SIMULATED SCENARIO · DOTTED = EXPECTED VALUE · SHADED = 80% BAND (NOT A GUARANTEE)"
+                : "SOLID = RECORDED · DASHED = EXPECTED VALUE · SHADED = 80% BAND (NOT A GUARANTEE)"}
             </span>
           </p>
 
@@ -345,6 +407,13 @@ export function ForecastPanel({ dataset }: { dataset: Dataset }) {
                   The model with the lowest error on the most recent data was
                   refitted on all readings and projected {result.horizon} steps
                   ahead.
+                </li>
+                <li>
+                  The dotted expected-value line is the model&apos;s best single
+                  guess, so it is smooth. The dashed scenario adds variation
+                  with the same size and roughness as this file&apos;s own
+                  errors. Its individual wiggles are illustrative, not predicted
+                  readings; press NEW SCENARIO to see another.
                 </li>
                 <li>
                   A forecast continues the patterns in the file. It cannot

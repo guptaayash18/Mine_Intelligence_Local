@@ -43,9 +43,14 @@ export interface ForecastPoint {
   label: string;
   /** Epoch ms, or null when the file has no usable time column. */
   ts: number | null;
+  /** Expected value: the model's best single guess (smooth by nature). */
   value: number;
   lo: number;
   hi: number;
+  /** Spread (one standard deviation) of the forecast error at this step. */
+  sigma: number;
+  /** One simulated scenario: the expected value plus realistic variation. */
+  sim: number;
 }
 
 export interface HistoryPoint {
@@ -69,6 +74,10 @@ export interface ForecastResult {
   improvementPct: number;
   /** Width of the empirical band (always 80). */
   bandPct: 80;
+  /** Step-to-step persistence of the model's errors (0 = jagged, near 1 = smooth wander). */
+  noisePhi: number;
+  /** Starting offset for the simulation: how far the last reading sits from the fit. */
+  lastResidual: number;
   history: HistoryPoint[];
   points: ForecastPoint[];
   notes: string[];
@@ -429,8 +438,77 @@ export interface CoreForecast {
   values: number[];
   lo: number[];
   hi: number[];
+  sigma: number[];
+  noisePhi: number;
+  lastResidual: number;
+  sim: number[];
   baselineRmse: number;
   improvementPct: number;
+}
+
+/* ============================ Simulated scenario ============================ */
+
+export const DEFAULT_SEED = 1;
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Lag-1 autocorrelation of the errors, clipped to a stable range. */
+function lag1Autocorrelation(r: readonly number[]): number {
+  if (r.length < 3) return 0;
+  const m = mean(r);
+  let num = 0;
+  let den = 0;
+  for (let t = 0; t < r.length; t++) {
+    den += (r[t]! - m) ** 2;
+    if (t > 0) num += (r[t]! - m) * (r[t - 1]! - m);
+  }
+  if (den === 0) return 0;
+  return Math.max(-0.5, Math.min(0.95, num / den));
+}
+
+/**
+ * One plausible future: the expected-value path plus noise that behaves like
+ * the model's own past errors. The noise is a first-order autoregression, so
+ * it wanders as smoothly (or as jaggedly) as the file's own data does, and
+ * its spread at every step equals the forecast spread, so about 80% of the
+ * path stays inside the shaded band. The same seed always gives the same path.
+ */
+export function simulatePath(
+  values: readonly number[],
+  sigma: readonly number[],
+  phi: number,
+  lastResidual: number,
+  seed: number,
+): number[] {
+  const rand = mulberry32(seed * 2654435761 + 12345);
+  const gauss = () => {
+    const u = Math.max(rand(), 1e-12);
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
+  };
+  const innov = Math.sqrt(Math.max(0, 1 - phi * phi));
+  const s0 = sigma[0] ?? 0;
+  // Start from where the data last sat relative to its fit, so the scenario
+  // continues from the recorded line instead of jumping.
+  let prev = s0 > 0 ? Math.max(-2 * s0, Math.min(2 * s0, lastResidual)) : 0;
+  const out: number[] = [];
+  for (let k = 0; k < values.length; k++) {
+    const sk = sigma[k] ?? 0;
+    const sPrev = k === 0 ? s0 : (sigma[k - 1] ?? 0);
+    // Keep the standardised noise level continuous when sigma grows.
+    const z = sPrev > 0 ? prev / sPrev : 0;
+    const zNew = phi * z + innov * gauss();
+    prev = zNew * sk;
+    out.push(values[k]! + prev);
+  }
+  return out;
 }
 
 /**
@@ -456,6 +534,10 @@ export function forecastSeries(y: readonly number[], h: number): CoreForecast {
       values: new Array(h).fill(v),
       lo: new Array(h).fill(v),
       hi: new Array(h).fill(v),
+      sigma: new Array(h).fill(0),
+      noisePhi: 0,
+      lastResidual: 0,
+      sim: new Array(h).fill(v),
       baselineRmse: 0,
       improvementPct: 0,
     };
@@ -488,14 +570,19 @@ export function forecastSeries(y: readonly number[], h: number): CoreForecast {
   const sigmaVal = Math.max(sigmaIn, winRmse);
   const lo: number[] = [];
   const hi: number[] = [];
+  const sigmas: number[] = [];
   for (let k = 1; k <= h; k++) {
     const frac = Math.min(1, (k - 1) / Math.max(1, nVal - 1));
     const sigma = Math.sqrt(
       sigmaIn ** 2 + frac * (sigmaVal ** 2 - sigmaIn ** 2),
     );
+    sigmas.push(sigma);
     lo.push(values[k - 1]! - Z80 * sigma);
     hi.push(values[k - 1]! + Z80 * sigma);
   }
+
+  const noisePhi = lag1Autocorrelation(full.residuals);
+  const lastResidual = full.residuals[full.residuals.length - 1] ?? 0;
 
   return {
     model: { id: winner.id, label: winner.label },
@@ -508,6 +595,10 @@ export function forecastSeries(y: readonly number[], h: number): CoreForecast {
     values,
     lo,
     hi,
+    sigma: sigmas,
+    noisePhi,
+    lastResidual,
+    sim: simulatePath(values, sigmas, noisePhi, lastResidual, DEFAULT_SEED),
     baselineRmse: baseline,
     improvementPct: baseline > 0 ? ((baseline - winRmse) / baseline) * 100 : 0,
   };
@@ -615,6 +706,8 @@ export function forecastColumn(
       value,
       lo: core.lo[i]!,
       hi: core.hi[i]!,
+      sigma: core.sigma[i]!,
+      sim: core.sim[i]!,
     };
   });
 
@@ -642,6 +735,8 @@ export function forecastColumn(
     baselineRmse: core.baselineRmse,
     improvementPct: core.improvementPct,
     bandPct: 80,
+    noisePhi: core.noisePhi,
+    lastResidual: core.lastResidual,
     history: y.map((value, i) => ({ label: fitLabels[i] ?? `#${i}`, value })),
     points,
     notes,
@@ -653,7 +748,7 @@ export function forecastToCsv(result: ForecastResult): string {
   const q = (s: string) =>
     /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   const lines = [
-    `step,time,${q(result.column)}_forecast,${q(result.column)}_lower_80,${q(result.column)}_upper_80`,
+    `step,time,${q(result.column)}_forecast,${q(result.column)}_lower_80,${q(result.column)}_upper_80,${q(result.column)}_simulated`,
   ];
   for (const p of result.points) {
     lines.push(
@@ -663,6 +758,7 @@ export function forecastToCsv(result: ForecastResult): string {
         p.value.toFixed(4),
         p.lo.toFixed(4),
         p.hi.toFixed(4),
+        p.sim.toFixed(4),
       ].join(","),
     );
   }
