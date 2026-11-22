@@ -64,7 +64,7 @@ const answer = (over: Record<string, unknown> = {}) => ({
 
 describe("mining system prompt", () => {
   it("is mining-specific and states the rule-based status is final", () => {
-    expect(MINING_SYSTEM_PROMPT).toMatch(/HazardWatch analyst/);
+    expect(MINING_SYSTEM_PROMPT).toMatch(/Mine Intelligence Locally analyst/);
     expect(MINING_SYSTEM_PROMPT).toMatch(
       /plain, easy-to-understand engineering terms/,
     );

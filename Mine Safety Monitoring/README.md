@@ -1,7 +1,7 @@
-# HazardWatch — Mine Environment & Hazard Monitor (offline)
+# Mine Intelligence Locally — Local AI for the Mining Industry (offline)
 
-Upload a mine-site CSV log and get multi-parameter trends, correlations, outlier
-flags and an AI shift report. **Everything runs on your computer.** The AI
+Upload a mining-industry CSV of any numerical data and get multi-parameter
+trends, correlations, outlier flags and an AI shift report. **Everything runs on your computer.** The AI
 report comes from a local model (Qwen 2.5 1.5B by default) served by
 [Ollama](https://ollama.com). After the one-time setup, no internet connection
 is needed.
@@ -47,7 +47,7 @@ consistency checks (`src/lib/ai/analyst.ts`). Only the place the model runs diff
 - **Deploy:** `.github/workflows/pages.yml` builds and publishes the site on
   every push to `main`. One-time setup: in the GitHub repo, open
   **Settings → Pages** and set **Source** to **GitHub Actions**.
-- **AI source:** the page first looks for the local HazardWatch app at
+- **AI source:** the page first looks for the local Mine Intelligence Locally app at
   `http://127.0.0.1:8080` (change with `VITE_LOCAL_AI_URL` at build time). If it
   is not reachable, the AI Analyst shows **Local AI is not running** with the
   start command, and offers the in-browser model as an alternative. There is no
@@ -78,7 +78,7 @@ your local model from the hosted page:
    That is `npm start` plus `--allow-origin https://guptaayash18.github.io`. For a
    fork, or for `npm run dev`, set `CORS_ALLOWED_ORIGINS=https://<user>.github.io`
    in `.env` instead.
-3. Open https://guptaayash18.github.io/Local_LLM_Mining/ in **Chrome or Edge**. If the
+3. Open https://guptaayash18.github.io/Mine_Intelligence_Local/ in **Chrome or Edge**. If the
    browser asks to let the site access devices on your local network, allow it.
    The badge then shows `LOCAL AI · QWEN2.5:1.5B`.
 
@@ -170,7 +170,7 @@ while the window is open. Close the window to stop.
 Or step by step:
 
 1. Make sure Ollama is running: open the Ollama app, or run `ollama serve`.
-2. Start HazardWatch:
+2. Start Mine Intelligence Locally:
 
    ```powershell
    npm start

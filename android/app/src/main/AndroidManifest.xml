@@ -4,7 +4,7 @@
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="HazardWatch"
+        android:label="Mine Intelligence Locally"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
         <meta-data
@@ -14,10 +14,10 @@
         <activity
             android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:exported="true"
-            android:label="HazardWatch">
+            android:label="Mine Intelligence Locally">
             <meta-data
                 android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                android:value="https://guptaayash18.github.io/Local_LLM_Mining/" />
+                android:value="https://guptaayash18.github.io/Mine_Intelligence_Local/" />
             <meta-data
                 android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
                 android:resource="@color/background" />

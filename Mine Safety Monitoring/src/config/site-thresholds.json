@@ -214,7 +214,7 @@
       "description": "Worker fall detected (man-down, wearable motion sensor; 1 = alarm on)",
       "meaning": "A worker's motion sensor saw a fall: a jolt, a change from upright to lying, and little movement afterwards. The alarm stays on until someone clears it. In a mine this can mean a slip or trip, or a worker overcome by gas: send someone to check at once and look at the gas readings at that point.",
       "worseWhen": "detected",
-      "source": "HazardWatch man-down detector trained on SisFall (38 people; 98.7 % of falls caught, 99.2 % of normal activities without a false alarm on people not used for training). Provisional until your site's man-down procedure is recorded as verified."
+      "source": "Mine Intelligence Locally man-down detector trained on SisFall (38 people; 98.7 % of falls caught, 99.2 % of normal activities without a false alarm on people not used for training). Provisional until your site's man-down procedure is recorded as verified."
     }
   }
 }

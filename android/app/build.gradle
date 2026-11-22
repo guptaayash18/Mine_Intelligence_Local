@@ -1,4 +1,4 @@
-// Android app for HazardWatch: a Trusted Web Activity that opens the GitHub Pages
+// Android app for Mine Intelligence Locally: a Trusted Web Activity that opens the GitHub Pages
 // edition full-screen in Chrome, so the in-phone AI model can use the GPU (WebGPU).
 plugins {
     id "com.android.application"
@@ -16,7 +16,7 @@ android {
         versionName "1.0"
     }
 
-    // Built unsigned; signed afterwards with the fixed HazardWatch key, whose
+    // Built unsigned; signed afterwards with the fixed Mine Intelligence Locally key, whose
     // fingerprint is published in https://guptaayash18.github.io/.well-known/assetlinks.json
     // so Android opens the app without an address bar.
     buildTypes {

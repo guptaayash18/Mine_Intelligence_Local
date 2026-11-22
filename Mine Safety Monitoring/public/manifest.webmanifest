@@ -1,7 +1,7 @@
 {
-  "name": "HazardWatch — Mine Environment & Hazard Monitor",
-  "short_name": "HazardWatch",
-  "description": "Mine-site sensor logs checked against CMR 2017 limits, with an AI shift report that runs on this device.",
+  "name": "Mine Intelligence Locally — Local AI for the Mining Industry",
+  "short_name": "Mine Intelligence Locally",
+  "description": "Local LLMs for the whole mining industry: analyse any numerical data, with an AI shift report that runs on this device.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

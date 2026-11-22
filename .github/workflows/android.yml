@@ -1,5 +1,5 @@
-# Builds the HazardWatch Android app (android/) and publishes HazardWatch.apk
-# unsigned on the "android-latest" release. The installable HazardWatch.apk is signed separately with the fixed app key.
+# Builds the Mine Intelligence Locally Android app (android/) and publishes MineIntelligenceLocally.apk
+# unsigned on the "android-latest" release. The installable MineIntelligenceLocally.apk is signed separately with the fixed app key.
 name: Build Android app
 
 on:
@@ -28,14 +28,14 @@ jobs:
           gradle-version: "8.9"
 
       - run: gradle assembleRelease --no-daemon
-      - run: cp app/build/outputs/apk/release/app-release-unsigned.apk HazardWatch-unsigned.apk
+      - run: cp app/build/outputs/apk/release/app-release-unsigned.apk MineIntelligenceLocally-unsigned.apk
 
       - name: Publish on the android-latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest HazardWatch-unsigned.apk \
+          gh release create android-latest MineIntelligenceLocally-unsigned.apk \
             --target "${{ github.sha }}" \
-            --title "HazardWatch Android app" \
-            --notes "Unsigned build: it cannot be installed as is. The installable HazardWatch.apk is signed with the fixed app key (fingerprint in android/assetlinks.json) and shared separately."
+            --title "Mine Intelligence Locally Android app" \
+            --notes "Unsigned build: it cannot be installed as is. The installable MineIntelligenceLocally.apk is signed with the fixed app key (fingerprint in android/assetlinks.json) and shared separately."

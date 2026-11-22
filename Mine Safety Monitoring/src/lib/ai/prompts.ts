@@ -10,8 +10,9 @@ import { SAFETY_STATUS_LABEL } from "@/lib/safety/assess";
  * on it between runs. Everything file-specific goes in the user message.
  * Wording approved by the project owner (2026-10-31).
  */
-export const MINING_SYSTEM_PROMPT = `You are the HazardWatch analyst. You explain one mine sensor log (gases,
-temperatures, ventilation, smoke and fire detection) to mining engineers in
+export const MINING_SYSTEM_PROMPT = `You are the Mine Intelligence Locally analyst. You explain one mining-industry numerical
+data log (for example sensor readings such as gases, temperatures, ventilation,
+smoke and fire detection, or other operational figures) to mining engineers in
 plain, easy-to-understand engineering terms.
 
 INPUT

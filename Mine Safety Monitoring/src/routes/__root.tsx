@@ -77,17 +77,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HazardWatch — Mine Environment & Hazard Monitor" },
+      { title: "Mine Intelligence Locally — Local AI for the Mining Industry" },
       {
         name: "description",
         content:
-          "Upload mine-site CSVs and turn operational parameters into trends, correlations and local AI analysis, fully offline.",
+          "Upload mining-industry CSVs and turn numerical data into trends, correlations and local AI analysis, fully offline.",
       },
-      { property: "og:title", content: "HazardWatch — Mine Environment & Hazard Monitor" },
+      { property: "og:title", content: "Mine Intelligence Locally — Local AI for the Mining Industry" },
       {
         property: "og:description",
         content:
-          "Upload mine-site CSVs and turn operational parameters into trends, correlations and local AI analysis, fully offline.",
+          "Upload mining-industry CSVs and turn numerical data into trends, correlations and local AI analysis, fully offline.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

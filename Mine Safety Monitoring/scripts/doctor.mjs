@@ -24,7 +24,7 @@ const fail = (msg, hint) => {
   if (hint) console.log(`        → ${hint}`);
 };
 
-console.log("HazardWatch offline readiness check\n");
+console.log("Mine Intelligence Locally offline readiness check\n");
 
 const [major] = process.versions.node.split(".").map(Number);
 if (major >= 22) pass(`Node.js ${process.versions.node}`);

@@ -1,6 +1,6 @@
 // AI client for the GitHub Pages edition (static site).
 //
-// 1. Preferred: the HazardWatch app running on this computer (Node + Ollama),
+// 1. Preferred: the Mine Intelligence Locally app running on this computer (Node + Ollama),
 //    reached at VITE_LOCAL_AI_URL (default http://127.0.0.1:8080). That app
 //    must allow this page's origin (npm run start:with-pages).
 // 2. Optional: the in-browser model (WebLLM + WebGPU), only after the visitor
@@ -24,7 +24,7 @@ const onPhone = () =>
   /Android|iPhone|iPad|Mobile/i.test(globalThis.navigator?.userAgent ?? "");
 
 const PC_HINT =
-  `Start the HazardWatch app on this computer with "npm run start:with-pages" (Ollama must be running), ` +
+  `Start the Mine Intelligence Locally app on this computer with "npm run start:with-pages" (Ollama must be running), ` +
   `then retry. It must listen on ${LOCAL_AI_URL}. Use Chrome or Edge; allow access to local network devices if the browser asks.`;
 const PHONE_HINT =
   "Tap USE IN-BROWSER MODEL INSTEAD once. The model downloads to this phone (use Wi-Fi); after that the AI report works offline.";
@@ -32,7 +32,7 @@ const startHint = () => (onPhone() ? PHONE_HINT : PC_HINT);
 const notRunning = () =>
   onPhone()
     ? "On this phone the AI analyst runs inside the app, after a one-time model download."
-    : `Local AI is not running: the HazardWatch app was not found at ${LOCAL_AI_URL}.`;
+    : `Local AI is not running: the Mine Intelligence Locally app was not found at ${LOCAL_AI_URL}.`;
 
 // WebLLM is large; load it on first use so the dashboard appears immediately.
 let mod: Promise<typeof import("./webllm")> | null = null;
@@ -98,7 +98,7 @@ async function analyzeViaLocal(
       ok: false,
       error: {
         code: "runtime_error",
-        message: `The local HazardWatch app returned an unexpected response (HTTP ${res.status}).`,
+        message: `The local Mine Intelligence Locally app returned an unexpected response (HTTP ${res.status}).`,
       },
     };
   } catch {
@@ -111,7 +111,7 @@ async function analyzeViaLocal(
       ok: false,
       error: {
         code: "backend_unavailable",
-        message: "Lost the connection to the local HazardWatch app.",
+        message: "Lost the connection to the local Mine Intelligence Locally app.",
         hint: startHint(),
       },
     };
@@ -159,7 +159,7 @@ export const aiClient: AiClient = {
         "backend_unavailable",
         onPhone()
           ? notRunning()
-          : "Local AI is not running. The AI analyst needs the HazardWatch app running on this computer.",
+          : "Local AI is not running. The AI analyst needs the Mine Intelligence Locally app running on this computer.",
         startHint(),
       );
       return {

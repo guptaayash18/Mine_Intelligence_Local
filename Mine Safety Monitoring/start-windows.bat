@@ -1,14 +1,14 @@
 @echo off
 REM ---------------------------------------------------------------
-REM  HazardWatch - one-click start on Windows (local AI, no cloud)
+REM  Mine Intelligence Locally - one-click start on Windows (local AI, no cloud)
 REM  Double-click this file. Keep this window open while you use
 REM  the app; close it to stop. First run needs internet.
 REM ---------------------------------------------------------------
 setlocal
 cd /d "%~dp0"
-title HazardWatch - mine environment and hazard monitor
+title Mine Intelligence Locally - local AI for the mining industry
 echo.
-echo  HazardWatch - starting from: %CD%
+echo  Mine Intelligence Locally - starting from: %CD%
 echo.
 
 if "%OLLAMA_MODEL%"=="" set OLLAMA_MODEL=qwen2.5:1.5b
@@ -82,7 +82,7 @@ if errorlevel 1 (
 
 echo.
 echo  =============================================================
-echo   HazardWatch is running:  http://127.0.0.1:8080
+echo   Mine Intelligence Locally is running:  http://127.0.0.1:8080
 echo   Keep this window open. Close it to stop the app.
 echo  =============================================================
 echo.
@@ -90,7 +90,7 @@ start "" cmd /c "timeout /t 5 /nobreak >nul & start http://127.0.0.1:8080"
 call npm run start:with-pages
 echo.
 echo  The app stopped. If it says the port is in use, close the other
-echo  HazardWatch window, or restart the computer, then run this again.
+echo  Mine Intelligence Locally window, or restart the computer, then run this again.
 goto :fail
 
 :fail

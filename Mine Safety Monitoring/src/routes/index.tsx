@@ -16,6 +16,7 @@ import {
 
 import { UploadZone } from "@/components/upload-zone";
 import { GridMap } from "@/components/grid-map";
+import { ForecastPanel } from "@/components/forecast-panel";
 import { SavedRunsPanel } from "@/components/saved-runs";
 import { SafetyPanel, SafetyStatusBadge } from "@/components/safety-panel";
 import {
@@ -56,20 +57,20 @@ import type { SavedRun } from "@/lib/storage/runs";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HazardWatch — Mine Environment & Hazard Monitor" },
+      { title: "Mine Intelligence Locally — Local AI for the Mining Industry" },
       {
         name: "description",
         content:
-          "Upload mine-site CSV logs and get multi-parameter trends, correlations, outlier flags and a local AI analyst read in one offline dashboard.",
+          "Upload any mining-industry numerical CSV and get multi-parameter trends, correlations, outlier flags and a local AI analyst read in one offline dashboard.",
       },
       {
         property: "og:title",
-        content: "HazardWatch — Mine Environment & Hazard Monitor",
+        content: "Mine Intelligence Locally — Local AI for the Mining Industry",
       },
       {
         property: "og:description",
         content:
-          "Upload mine-site CSV logs and get multi-parameter trends, correlations, outlier flags and an AI analyst read in one dashboard.",
+          "Upload any mining-industry numerical CSV and get multi-parameter trends, correlations, outlier flags and an AI analyst read in one dashboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -827,10 +828,10 @@ function Dashboard() {
             </span>
             <div>
               <h1 className="font-display text-3xl leading-none tracking-widest text-foreground text-glow">
-                HAZARDWATCH
+                MINE INTELLIGENCE LOCALLY
               </h1>
               <p className="font-mono text-[10px] tracking-[0.25em] text-muted-foreground">
-                MINE ENVIRONMENT & HAZARD MONITOR
+                LOCAL AI FOR THE MINING INDUSTRY · ANY NUMERICAL DATA
               </p>
             </div>
           </div>
@@ -939,10 +940,24 @@ function Dashboard() {
           )}
         </section>
 
-        {/* 03 — Parameter deck */}
+        {/* 03 — Forecast */}
         <section>
           <SectionHeader
             index="03"
+            title="FORECAST"
+            right={
+              <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
+                NEXT HALF OF THE RECORD · LOCAL MODELS
+              </span>
+            }
+          />
+          {dataset ? <ForecastPanel dataset={dataset} /> : <EmptyChartNote />}
+        </section>
+
+        {/* 04 — Parameter deck */}
+        <section>
+          <SectionHeader
+            index="04"
             title="PARAMETER DECK"
             right={
               <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
@@ -969,9 +984,9 @@ function Dashboard() {
           )}
         </section>
 
-        {/* 04 — Cross-signals */}
+        {/* 05 — Cross-signals */}
         <section>
-          <SectionHeader index="04" title="CROSS-SIGNALS" />
+          <SectionHeader index="05" title="CROSS-SIGNALS" />
           {dataset ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <CorrelationPanel dataset={dataset} />
@@ -982,10 +997,10 @@ function Dashboard() {
           )}
         </section>
 
-        {/* 05 — AI analyst */}
+        {/* 06 — AI analyst */}
         <section>
           <SectionHeader
-            index="05"
+            index="06"
             title="AI ANALYST"
             right={
               <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
@@ -1010,7 +1025,7 @@ function Dashboard() {
       <footer className="border-t border-border bg-surface">
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
           <p className="font-mono text-[10px] tracking-wider text-muted-foreground">
-            HAZARDWATCH // ALL READINGS COMPUTED IN YOUR BROWSER FROM THE
+            MINE INTELLIGENCE LOCALLY // ALL READINGS COMPUTED IN YOUR BROWSER FROM THE
             UPLOADED LOG · AI READ BY A LOCAL MODEL ON THIS COMPUTER · NOTHING
             LEAVES THIS MACHINE
           </p>

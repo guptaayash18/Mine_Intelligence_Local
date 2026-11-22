@@ -455,7 +455,7 @@ export function SafetyPanel({
         <button
           onClick={() =>
             downloadText(
-              "hazardwatch-safety-rules.json",
+              "mine-intelligence-safety-rules.json",
               activeConfigJson(),
               "application/json",
             )

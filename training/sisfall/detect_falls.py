@@ -1,6 +1,6 @@
 """
 Run the trained man-down detector on worker motion data and add a
-`Worker_Fall_Detected` column (0/1 per row) to a HazardWatch sensor CSV.
+`Worker_Fall_Detected` column (0/1 per row) to a Mine Intelligence Locally sensor CSV.
 
 Usage
 -----

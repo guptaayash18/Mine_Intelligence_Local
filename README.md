@@ -1,9 +1,11 @@
-# Local LLM Mining
+# Mine Intelligence Locally
 
-**HazardWatch** is a mine environment and hazard monitor. Upload a sensor CSV
-(gases, temperatures, ventilation, smoke and fire detection) and get a
-rule-based safety status, a guide to every parameter, trends, correlations,
-outliers and an AI shift report.
+**Mine Intelligence Locally** runs large language models locally for the whole
+mining industry. Upload a CSV of any numerical data (for example sensor logs
+with gases, temperatures, ventilation, smoke and fire detection, or production,
+equipment and other operational figures) and get trends, correlations,
+outliers and an AI shift report. For safety-sensor logs it also gives a
+rule-based safety status and a guide to every parameter.
 
 **AI engine (final):** Qwen 2.5 1.5B (`qwen2.5:1.5b`) running locally in
 Ollama on your own computer. No cloud AI is used, and nothing leaves the
@@ -14,7 +16,7 @@ same Qwen model.
 It comes in two editions:
 
 - **Local app:** run it on your computer with Ollama. It works fully offline.
-- **Web edition:** https://guptaayash18.github.io/Local_LLM_Mining/ (deployed by
+- **Web edition:** https://guptaayash18.github.io/Mine_Intelligence_Local/ (deployed by
   `.github/workflows/pages.yml`). Its AI uses the local app on your computer
   when you start it with `npm run start:with-pages`. Otherwise you can choose
   the in-browser model (about 1 GB download, Chrome or Edge with WebGPU).
@@ -47,16 +49,16 @@ npm start        # then open http://127.0.0.1:8080
 
 The web edition installs as an app:
 
-1. On the phone, open https://guptaayash18.github.io/Local_LLM_Mining/ in **Chrome**.
+1. On the phone, open https://guptaayash18.github.io/Mine_Intelligence_Local/ in **Chrome**.
 2. Tap **⋮ → Install app** (or **Add to home screen → Install**).
-3. Open **HazardWatch** from the home screen. Load a CSV, then tap
+3. Open **Mine Intelligence Locally** from the home screen. Load a CSV, then tap
    **USE IN-BROWSER MODEL INSTEAD** once: the Qwen model downloads to the phone
    (about 1 GB, use Wi-Fi). After that the dashboard and the AI report work offline.
 
 Needs Chrome on Android 12 or later (WebGPU). Phones that report less than
 8 GB of memory get the smaller Qwen 2.5 0.5B model automatically.
 
-## Models trained for HazardWatch
+## Models trained for Mine Intelligence Locally
 
 See [`training/`](./training/README.md).
 
