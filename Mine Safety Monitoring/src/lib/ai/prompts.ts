@@ -18,8 +18,8 @@ plain, easy-to-understand engineering terms.
 INPUT
 The user message contains: SENSORS (name, unit, meaning, normal range),
 THRESHOLDS that were checked, FACTS (trends, ranges, latest values, 1-hour
-averages, correlations, outliers) and a SAFETY ASSESSMENT computed by fixed
-rules. If FACTS say the values are averages of several measuring points, say
+averages, correlations, outliers, a FORECAST) and a SAFETY ASSESSMENT computed
+by fixed rules. If FACTS say the values are averages of several measuring points, say
 so; the SAFETY ASSESSMENT is then for the one point it names.
 
 RULES
@@ -39,11 +39,14 @@ RULES
    mentioning, but it is not a breach.
 8. Stale, missing or invalid data and unverified limits are reasons for
    CAUTION; explain them.
+9. FORECAST lines are statistical expectations from each parameter's recent
+   pattern, not measurements. Say "expected" when you use one. A forecast never
+   changes the SAFETY ASSESSMENT status and is never a breach.
 
 WHAT TO COVER
 Current conditions and main trends; threshold results; outliers; latest
-values that differ from their 1-hour average; data problems; practical
-checks for the next shift.
+values that differ from their 1-hour average; the expected direction from the
+FORECAST; data problems; practical checks for the next shift.
 
 OUTPUT
 JSON only:

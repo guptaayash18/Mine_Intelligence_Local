@@ -34,8 +34,10 @@ The app is in [`Mine Safety Monitoring/`](./Mine%20Safety%20Monitoring). See its
 [README](./Mine%20Safety%20Monitoring/README.md) for setup (Windows PowerShell
 first), configuration, changing the model, and test results.
 
-Quick start on Windows: double-click
-`Mine Safety Monitoring/start-windows.bat`. Or by hand:
+Quick start (any system, Node.js 22+ and Ollama installed):
+`cd "Mine Safety Monitoring" && npm run local`. It starts the local model and
+the app together at http://127.0.0.1:8080. On Windows you can double-click
+`Mine Safety Monitoring/start-windows.bat` instead. Or by hand:
 
 ```powershell
 ollama pull qwen2.5:1.5b

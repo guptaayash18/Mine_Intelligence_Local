@@ -18,7 +18,7 @@ import { UploadZone } from "@/components/upload-zone";
 import { GridMap } from "@/components/grid-map";
 import { ForecastPanel } from "@/components/forecast-panel";
 import { SavedRunsPanel } from "@/components/saved-runs";
-import { SafetyPanel, SafetyStatusBadge } from "@/components/safety-panel";
+import { SafetyStatusBadge } from "@/components/safety-panel";
 import {
   assessSafety,
   worstIndex,
@@ -36,6 +36,7 @@ import {
   buildDataset,
   buildProfile,
   computeAnomalies,
+  computeCorrelations,
   formatValue,
   prettyName,
   type Dataset,
@@ -538,6 +539,23 @@ function AnalystPanel({
               </div>
             ))}
           </div>
+          {insights.outlook && insights.outlook.length > 0 && (
+            <div className="rounded-md border border-border bg-surface p-3">
+              <p className="font-mono text-[10px] tracking-wider text-primary">
+                FORECAST OUTLOOK · EXPECTATION, NOT A MEASUREMENT
+              </p>
+              <ul className="mt-1.5 grid gap-1.5">
+                {insights.outlook.map((o) => (
+                  <li key={o.parameter} className="text-xs text-foreground">
+                    <span className="font-mono font-semibold">
+                      {prettyName(o.parameter)}
+                    </span>
+                    <span className="text-muted-foreground"> — {o.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="rounded-md border border-border bg-surface-2 p-3">
             <p className="font-mono text-[10px] tracking-wider text-primary">
               SHIFT ACTIONS
@@ -594,7 +612,7 @@ function AnalystPanel({
 function CorrelationPanel({ dataset }: { dataset: Dataset }) {
   const pairs = useMemo(() => {
     // Reuse the profile's correlation routine by building a lightweight profile.
-    return buildProfile(dataset).correlations;
+    return computeCorrelations(dataset);
   }, [dataset]);
 
   return (
@@ -1008,9 +1026,6 @@ function Dashboard() {
               </span>
             }
           />
-          {dataset && assessment && (
-            <SafetyPanel assessment={assessment} active={active} />
-          )}
           <AnalystPanel
             dataset={dataset}
             assessment={assessment}

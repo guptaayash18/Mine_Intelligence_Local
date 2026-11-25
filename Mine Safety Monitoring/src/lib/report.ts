@@ -120,6 +120,18 @@ export function buildMarkdownReport(
           : ""),
     ),
     "",
+    ...(insights.outlook && insights.outlook.length > 0
+      ? [
+          "## Forecast outlook",
+          "",
+          "_Statistical projection of each parameter's recent pattern over the next half of the record. An expectation, not a measurement; it does not change the safety status._",
+          "",
+          ...insights.outlook.map(
+            (o) => `- **${prettyName(o.parameter)}**: ${o.text}`,
+          ),
+          "",
+        ]
+      : []),
     "## Recommended actions",
     "",
     ...insights.recommendations.map((r, i) => `${i + 1}. ${r}`),

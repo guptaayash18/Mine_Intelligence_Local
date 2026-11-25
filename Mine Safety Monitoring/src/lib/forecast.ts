@@ -3,8 +3,8 @@
  * packages). Given a numeric column, it predicts the next half of the series:
  * a file with n rows gets a forecast of floor(n / 2) steps.
  *
- * Several classical models compete on a hold-out of the most recent data and
- * the one with the lowest error is refitted on everything and used:
+ * Many models compete on a hold-out of the most recent data and the one with
+ * the lowest error is refitted on everything and used:
  *
  *   naive            repeat the last value (the baseline to beat)
  *   linear           straight-line regression on time
@@ -12,12 +12,19 @@
  *   seasonal-naive   repeat the last full season
  *   seasonal-reg     linear trend + a fixed average pattern per season position
  *   holt-winters     damped-trend Holt-Winters with an additive seasonal part
+ *   ses, theta, quadratic, arima, sarima, neural   see forecast-models.ts
+ *   ensemble         the average of the three best models above
  *
  * The seasonal period is found from the autocorrelation of the detrended
  * series. Prediction bands are empirical 80% bands built from the model's
  * own one-step errors and its hold-out error. They are not guarantees.
  */
-import { chartOrderedRows, type Dataset } from "@/lib/dataset";
+import {
+  chartOrderedRows,
+  type Dataset,
+  type ForecastSummary,
+} from "@/lib/dataset";
+import { EXTRA_MODELS, type ExtraModelId } from "@/lib/forecast-models";
 import { medianSamplingIntervalMs, parseTimestamp } from "@/lib/moving-average";
 
 /* ============================ Types ============================ */
@@ -28,7 +35,9 @@ export type ForecastModelId =
   | "holt"
   | "seasonal-naive"
   | "seasonal-reg"
-  | "holt-winters";
+  | "holt-winters"
+  | ExtraModelId
+  | "ensemble";
 
 export interface ForecastCandidate {
   id: ForecastModelId;
@@ -421,6 +430,7 @@ const holtWinters: Model = {
 };
 
 const MODELS: Model[] = [
+  ...EXTRA_MODELS,
   naive,
   linear,
   holt,
@@ -428,6 +438,34 @@ const MODELS: Model[] = [
   seasonalReg,
   holtWinters,
 ];
+
+/** Average of several models: forecasts and in-sample errors are averaged. */
+function makeEnsemble(parts: Model[]): Model {
+  return {
+    id: "ensemble",
+    label: `Ensemble (average of ${parts.length} best models)`,
+    needsSeason: false,
+    fit: (y, m) => {
+      const fits = parts
+        .map((p) => p.fit(y, m))
+        .filter((f): f is Fitted => f !== null);
+      if (fits.length === 0) return null;
+      const len = Math.min(...fits.map((f) => f.residuals.length));
+      return {
+        // Errors are aligned from the most recent end.
+        residuals: Array.from({ length: len }, (_, i) =>
+          mean(fits.map((f) => f.residuals[f.residuals.length - len + i]!)),
+        ),
+        forecast: (h) => {
+          const all = fits.map((f) => f.forecast(h));
+          return Array.from({ length: h }, (_, k) =>
+            mean(all.map((a) => a[k]!)),
+          );
+        },
+      };
+    },
+  };
+}
 
 /* ============================ Core forecast ============================ */
 
@@ -548,15 +586,34 @@ export function forecastSeries(y: readonly number[], h: number): CoreForecast {
   const train = y.slice(0, n - nVal);
   const valid = y.slice(n - nVal);
 
-  const scored: { model: Model; rmse: number }[] = [];
+  const scored: { model: Model; rmse: number; pred: number[] }[] = [];
   for (const model of MODELS) {
     if (model.needsSeason && m < 2) continue;
     const fit = model.fit(train, m);
     if (!fit) continue;
-    const e = rmse(valid, fit.forecast(nVal));
-    if (Number.isFinite(e)) scored.push({ model, rmse: e });
+    const pred = fit.forecast(nVal);
+    const e = rmse(valid, pred);
+    if (Number.isFinite(e)) scored.push({ model, rmse: e, pred });
   }
   scored.sort((p, q) => p.rmse - q.rmse);
+
+  // Ensemble: the average of the three best models is often better than any
+  // one of them. It competes like the rest.
+  const top = scored.slice(0, 3);
+  if (top.length >= 2) {
+    const pred = Array.from({ length: nVal }, (_, i) =>
+      mean(top.map((t) => t.pred[i]!)),
+    );
+    const e = rmse(valid, pred);
+    if (Number.isFinite(e)) {
+      scored.push({
+        model: makeEnsemble(top.map((t) => t.model)),
+        rmse: e,
+        pred,
+      });
+      scored.sort((p, q) => p.rmse - q.rmse);
+    }
+  }
   const winner = scored[0]!.model;
   const baseline = scored.find((s) => s.model.id === "naive")!.rmse;
   const winRmse = scored[0]!.rmse;
@@ -763,4 +820,99 @@ export function forecastToCsv(result: ForecastResult): string {
     );
   }
   return lines.join("\n");
+}
+
+/* ============================ Summary for the AI report ============================ */
+
+const SUMMARY_COLUMNS = 20;
+
+/** A 0/1 detection flag: a forecast of it would say nothing useful. */
+function isFlagColumn(dataset: Dataset, name: string): boolean {
+  let seen = 0;
+  for (const row of dataset.rows) {
+    const v = row[name];
+    if (typeof v !== "number") continue;
+    if (v !== 0 && v !== 1) return false;
+    seen++;
+  }
+  return seen > 0;
+}
+
+/**
+ * Forecast every numeric column (up to 20) and keep only what the AI report
+ * needs: where each one is expected to be at the end and the 80% range.
+ * Columns that cannot be forecast (too few readings) are left out.
+ */
+export function buildForecastSummary(
+  dataset: Dataset,
+): ForecastSummary | undefined {
+  const items: ForecastSummary["items"] = [];
+  let horizon = 0;
+  let until: string | null = null;
+  for (const name of dataset.numericNames.slice(0, SUMMARY_COLUMNS)) {
+    if (isFlagColumn(dataset, name)) continue;
+    let r: ForecastResult;
+    try {
+      r = forecastColumn(dataset, name);
+    } catch {
+      continue;
+    }
+    const lastPoint = r.points[r.points.length - 1];
+    const last = r.history[r.history.length - 1]?.value;
+    if (!lastPoint || last === undefined) continue;
+    horizon = r.horizon;
+    until = r.stepMs !== null ? lastPoint.label : until;
+    const unit = dataset.columns.find((c) => c.name === name)?.unit ?? "";
+    items.push({
+      column: name,
+      unit,
+      model: r.model.label,
+      last: Number(last.toPrecision(6)),
+      end: Number(lastPoint.value.toPrecision(6)),
+      changePct:
+        last !== 0
+          ? Number(
+              (((lastPoint.value - last) / Math.abs(last)) * 100).toFixed(1),
+            )
+          : 0,
+      lo: Number(lastPoint.lo.toPrecision(6)),
+      hi: Number(lastPoint.hi.toPrecision(6)),
+    });
+  }
+  return items.length ? { horizon, until, items } : undefined;
+}
+
+/** Below this change, the expected value is described as roughly steady. */
+export const OUTLOOK_FLAT_PCT = 2;
+
+const withUnit = (v: number, unit: string) =>
+  `${Number(v.toPrecision(4))}${unit ? ` ${unit}` : ""}`;
+
+/** One plain sentence per parameter, written by code (never by the model). */
+export function outlookText(item: ForecastSummary["items"][number]): string {
+  const move =
+    Math.abs(item.changePct) < OUTLOOK_FLAT_PCT
+      ? "expected to stay roughly level"
+      : item.changePct > 0
+        ? `expected to rise about ${Math.abs(item.changePct)}%`
+        : `expected to fall about ${Math.abs(item.changePct)}%`;
+  return (
+    `${move}, from ${withUnit(item.last, item.unit)} to about ` +
+    `${withUnit(item.end, item.unit)} (80% range ${withUnit(item.lo, "")} to ` +
+    `${withUnit(item.hi, item.unit)}). Model: ${item.model}.`
+  );
+}
+
+/** Outlook lines for the parameters the report already covers. */
+export function planOutlook(
+  summary: ForecastSummary | undefined,
+  parameters: readonly string[],
+): { parameter: string; text: string }[] {
+  if (!summary) return [];
+  const out: { parameter: string; text: string }[] = [];
+  for (const p of parameters) {
+    const item = summary.items.find((i) => i.column === p);
+    if (item) out.push({ parameter: p, text: outlookText(item) });
+  }
+  return out;
 }

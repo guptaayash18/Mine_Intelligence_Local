@@ -10,6 +10,7 @@ import {
   profileSchema,
   type NormaliseOutcome,
 } from "./insights";
+import { planOutlook } from "@/lib/forecast";
 import { buildSystemPrompt } from "./prompts";
 import { LocalAiError, type LocalInferenceProvider } from "./provider";
 import type { AnalyzeResult } from "./types";
@@ -202,6 +203,12 @@ export async function runAnalysis(
       };
     }
   }
+  // Forecast outlook is written by code from the forecast, never by the model.
+  const outlook = planOutlook(
+    profile.forecast,
+    planned.map((f) => f.parameter),
+  );
+  if (outlook.length > 0) insights = { ...insights, outlook };
   log("ok", {
     model,
     ms: totalMs,

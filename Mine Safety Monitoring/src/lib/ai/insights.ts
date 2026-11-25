@@ -171,6 +171,26 @@ export const profileSchema = z.object({
     last: z.array(z.string().max(4000)).max(10),
   }),
   safety: safetySchema.optional(),
+  forecast: z
+    .object({
+      horizon: z.number().int().nonnegative().max(1_000_000),
+      until: shortText.nullable(),
+      items: z
+        .array(
+          z.object({
+            column: shortText,
+            unit: z.string().max(20),
+            model: shortText,
+            last: finite,
+            end: finite,
+            changePct: finite,
+            lo: finite,
+            hi: finite,
+          }),
+        )
+        .max(40),
+    })
+    .optional(),
   grid: z
     .object({
       points: z.array(shortText).max(50),
@@ -402,6 +422,25 @@ export function buildFactsSheet(profile: DatasetProfile): string {
     );
   }
 
+  if (profile.forecast && profile.forecast.items.length > 0) {
+    const f = profile.forecast;
+    lines.push("");
+    lines.push(
+      `FORECAST (statistical projection of each parameter's recent pattern over the next ${f.horizon} readings${f.until ? `, to ${f.until}` : ""}; an expectation, not a measurement):`,
+    );
+    for (const i of f.items.slice(0, MAX_PROMPT_COLUMNS)) {
+      const dir =
+        Math.abs(i.changePct) < FLAT_TREND_PCT
+          ? "stay roughly level"
+          : i.changePct > 0
+            ? "go up"
+            : "go down";
+      lines.push(
+        `- ${i.column}: expected to ${dir} from ${withUnit(i.last, i.unit)} to about ${withUnit(i.end, i.unit)} (${i.changePct >= 0 ? "+" : ""}${num(i.changePct)}%); 80% range ${num(i.lo)} to ${withUnit(i.hi, i.unit)}.`,
+      );
+    }
+  }
+
   lines.push("");
   lines.push(safetyFacts(profile));
   return lines.join("\n");
@@ -516,6 +555,8 @@ export function findDirectionContradictions(
     .filter(Boolean);
   const bad = new Set<string>();
   for (const clause of clauses) {
+    // A forecast clause describes the future, not the recorded trend.
+    if (FORECAST_WORDS.test(clause)) continue;
     const mentioned = numeric.filter((c) =>
       mentionTokens(c.name).some((t) => clause.includes(t)),
     );
@@ -544,6 +585,8 @@ export function findDirectionContradictions(
   return [...bad];
 }
 
+const FORECAST_WORDS =
+  /\b(forecast\w*|expect\w*|project\w*|predict\w*|outlook|next|ahead|will|going to)\b/i;
 const STABLE =
   /\b(stable|steady|unchanged|flat|constant|no (significant )?change)\b/i;
 /** A parameter that moved at least this much should not be called stable. */

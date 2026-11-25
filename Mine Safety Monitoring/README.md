@@ -24,6 +24,40 @@ Browser (React UI) ── http://127.0.0.1:8080 ──► Local app server (Node
 - **Storage:** saved runs (CSV + AI report) are kept in the browser's IndexedDB
   on this computer. Reports can be exported as Markdown files.
 
+## Run everything on this computer (one command)
+
+The local language model (Ollama), the dashboard and the forecasting all run on
+your own computer. Nothing is uploaded.
+
+```
+npm run local        # Windows, macOS, Linux (Node.js 22+ and Ollama installed)
+```
+
+On macOS or Linux you can also run `./start-mac-linux.sh`; on Windows,
+double-click `start-windows.bat`. The command checks Node, starts Ollama if it
+is not running, downloads the model once (`qwen2.5:1.5b`, about 1 GB), builds
+the app when the code changed, starts it at **http://127.0.0.1:8080** and opens
+the browser. Press Ctrl+C to stop; an Ollama that the command started is
+stopped with it. Flags: `--no-open` (do not open the browser), `--no-pull`
+(never download the model). Without Ollama the dashboard, forecasts and safety
+status still work; only the AI report is unavailable.
+
+### Forecasting
+
+Section 03 of the dashboard forecasts any numeric column for the next half of
+the record (n rows give n / 2 steps), in the browser. Thirteen models compete
+on a back-test of the latest data and the best is refitted: naive, simple
+exponential smoothing, Theta, linear and quadratic regression, damped Holt,
+ARIMA (autoregression on the series or its changes), and, when a repeating
+cycle is found, seasonal naive, seasonal regression, Holt-Winters and SARIMA;
+plus a small neural network and an ensemble that averages the three best.
+Everything runs in the browser and is deterministic. The chart shows the
+expected value, one simulated scenario with realistic variation, and an 80%
+band. The forecast is also given to the local model as facts (labelled as an
+expectation that never changes the safety status), and the report gets a
+"Forecast outlook" written by code from the same numbers. At least 12 valid
+readings are needed.
+
 ---
 
 ## Two editions

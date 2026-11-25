@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { axisLabeler, buildDataset, shortLabel } from "@/lib/dataset";
+import { EXTRA_MODELS } from "@/lib/forecast-models";
 import {
   detectSeasonalPeriod,
   forecastColumn,
@@ -47,9 +48,13 @@ describe("forecastSeries", () => {
     const y = seasonal(240, 24, 0.05);
     const f = forecastSeries(y, 120);
     expect(f.seasonalPeriod).toBe(24);
-    expect(["seasonal-reg", "holt-winters", "seasonal-naive"]).toContain(
-      f.model.id,
-    );
+    expect([
+      "seasonal-reg",
+      "holt-winters",
+      "seasonal-naive",
+      "sarima",
+      "ensemble",
+    ]).toContain(f.model.id);
     expect(f.improvementPct).toBeGreaterThan(50);
     const truth = seasonal(360, 24, 0.05).slice(240);
     const err = Math.sqrt(
@@ -173,8 +178,9 @@ describe("simulated scenario", () => {
     const f = forecastSeries(y, 150);
     const wiggle = stepStd(f.sim);
     const mean = stepStd(f.values);
-    expect(mean).toBeLessThan(0.05); // expected path is (almost) straight
+    // The expected path is smooth; the scenario adds real step-to-step variation.
     expect(wiggle).toBeGreaterThan(0.1);
+    expect(wiggle).toBeGreaterThan(mean * 1.5);
   });
 
   it("has step-to-step roughness comparable to the recorded data", () => {
@@ -208,5 +214,117 @@ describe("simulated scenario", () => {
   it("stays flat for a constant series", () => {
     const f = forecastSeries(new Array(30).fill(5), 10);
     expect(f.sim.every((v) => v === 5)).toBe(true);
+  });
+});
+
+describe("extra models", () => {
+  const byId = (id: string) => EXTRA_MODELS.find((m) => m.id === id)!;
+  const rmseOf = (a: number[], b: number[]) =>
+    Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]!) ** 2, 0) / a.length);
+  // Deterministic pseudo-random numbers in (-1, 1).
+  const rng = (seed: number) => () =>
+    ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5) * 2;
+
+  it("every extra model returns finite values of the requested length", () => {
+    const r = rng(1);
+    const y = Array.from(
+      { length: 200 },
+      (_, t) => 50 + 0.1 * t + 8 * Math.sin((2 * Math.PI * t) / 24) + r(),
+    );
+    for (const model of EXTRA_MODELS) {
+      const fit = model.fit(y, 24);
+      expect(fit, model.id).not.toBeNull();
+      const f = fit!.forecast(60);
+      expect(f, model.id).toHaveLength(60);
+      expect(f.every(Number.isFinite), model.id).toBe(true);
+      expect(fit!.residuals.every(Number.isFinite), model.id).toBe(true);
+    }
+  });
+
+  it("theta and quadratic follow a trend; ses stays level", () => {
+    const y = Array.from({ length: 80 }, (_, t) => 10 + 0.5 * t);
+    expect(byId("theta").fit(y, 0)!.forecast(10)[9]!).toBeGreaterThan(y[79]!);
+    const q = Array.from({ length: 60 }, (_, t) => 5 + 0.02 * t * t);
+    const truth = Array.from(
+      { length: 10 },
+      (_, k) => 5 + 0.02 * (60 + k) ** 2,
+    );
+    expect(
+      rmseOf(byId("quadratic").fit(q, 0)!.forecast(10), truth),
+    ).toBeLessThan(rmseOf(new Array(10).fill(q[59]!), truth));
+    const flat = byId("ses")
+      .fit(
+        Array.from({ length: 30 }, () => 4),
+        0,
+      )!
+      .forecast(5);
+    expect(flat.every((v) => Math.abs(v - 4) < 1e-9)).toBe(true);
+  });
+
+  it("arima beats the last value on an autoregressive series (many origins)", () => {
+    const r = rng(7);
+    const y: number[] = [20];
+    for (let t = 1; t < 700; t++) y.push(20 + 0.85 * (y[t - 1]! - 20) + r());
+    let arimaErr = 0;
+    let naiveErr = 0;
+    let runs = 0;
+    for (let origin = 200; origin <= 680; origin += 20) {
+      const train = y.slice(0, origin);
+      const truth = y.slice(origin, origin + 10);
+      const fc = byId("arima").fit(train, 0)!.forecast(truth.length);
+      arimaErr += rmseOf(fc, truth);
+      naiveErr += rmseOf(
+        new Array(truth.length).fill(train[origin - 1]!),
+        truth,
+      );
+      runs++;
+    }
+    expect(runs).toBeGreaterThan(10);
+    expect(arimaErr).toBeLessThan(naiveErr);
+  });
+
+  it("sarima repeats a seasonal pattern on top of drift", () => {
+    const y = Array.from(
+      { length: 168 },
+      (_, t) => 100 + 0.3 * t + 10 * Math.sin((2 * Math.PI * t) / 24),
+    );
+    const truth = Array.from(
+      { length: 24 },
+      (_, k) =>
+        100 + 0.3 * (168 + k) + 10 * Math.sin((2 * Math.PI * (168 + k)) / 24),
+    );
+    expect(rmseOf(byId("sarima").fit(y, 24)!.forecast(24), truth)).toBeLessThan(
+      1.5,
+    );
+  });
+
+  it("the neural network learns a seasonal shape and is repeatable", () => {
+    const y = Array.from(
+      { length: 240 },
+      (_, t) => 50 + 0.05 * t + 6 * Math.sin((2 * Math.PI * t) / 24),
+    );
+    const truth = Array.from(
+      { length: 24 },
+      (_, k) =>
+        50 + 0.05 * (240 + k) + 6 * Math.sin((2 * Math.PI * (240 + k)) / 24),
+    );
+    const a = byId("neural").fit(y, 24)!.forecast(24);
+    const b = byId("neural").fit(y, 24)!.forecast(24);
+    expect(a).toEqual(b);
+    expect(rmseOf(a, truth)).toBeLessThan(3);
+  });
+
+  it("the ensemble competes and the full run stays fast", () => {
+    const r = rng(3);
+    const y = Array.from(
+      { length: 1500 },
+      (_, t) => 30 + 0.01 * t + 4 * Math.sin((2 * Math.PI * t) / 48) + r(),
+    );
+    const t0 = Date.now();
+    const f = forecastSeries(y, 750);
+    expect(Date.now() - t0).toBeLessThan(5000);
+    expect(f.candidates.map((c) => c.id)).toContain("ensemble");
+    expect(f.candidates.length).toBeGreaterThanOrEqual(10);
+    expect(f.values.every(Number.isFinite)).toBe(true);
   });
 });

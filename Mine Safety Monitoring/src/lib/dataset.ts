@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 
+import { buildForecastSummary } from "@/lib/forecast";
 import { movingAverage, parseTimestamp } from "@/lib/moving-average";
 import {
   compactAssessment,
@@ -94,6 +95,27 @@ export interface ProfileColumn {
   distinct?: number;
 }
 
+/** Compact forecast facts for the AI report (computed by lib/forecast.ts). */
+export interface ForecastSummary {
+  /** Number of future readings projected (half the rows). */
+  horizon: number;
+  /** Timestamp of the last projected reading, or null without a time column. */
+  until: string | null;
+  items: {
+    column: string;
+    unit: string;
+    /** Name of the model that won the back-test. */
+    model: string;
+    /** Last recorded value and the expected value at the end of the forecast. */
+    last: number;
+    end: number;
+    changePct: number;
+    /** 80% range at the end of the forecast. */
+    lo: number;
+    hi: number;
+  }[];
+}
+
 export interface DatasetProfile {
   name: string;
   rowCount: number;
@@ -110,6 +132,8 @@ export interface DatasetProfile {
   rerun?: number;
   /** Grid file: the values are averages of these points; safety is for one. */
   grid?: { points: string[]; assessedPoint: string | null };
+  /** Projection of each parameter over the next half of the record. */
+  forecast?: ForecastSummary;
 }
 
 export interface DatasetInsights {
@@ -125,6 +149,8 @@ export interface DatasetInsights {
     interpretation?: string;
   }[];
   recommendations: string[];
+  /** Forecast outlook per parameter, written by code from the forecast. */
+  outlook?: { parameter: string; text: string }[];
   /**
    * Safety classification. `status` is always copied from the rule-based
    * assessment, never taken from the model. `explanation` is the model's
@@ -660,6 +686,8 @@ export function buildProfile(
       timeRange = { start: labels[0]!, end: labels[labels.length - 1]! };
   }
 
+  const forecast = buildForecastSummary(dataset);
+
   return {
     name: dataset.name,
     rowCount: dataset.rowCount,
@@ -678,6 +706,7 @@ export function buildProfile(
       last: dataset.rows.slice(-3).map(toLine),
     },
     ...(safety ? { safety: compactAssessment(safety) } : {}),
+    ...(forecast ? { forecast } : {}),
     ...(dataset.grid
       ? {
           grid: {
